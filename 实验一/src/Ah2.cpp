@@ -7,62 +7,64 @@
 
 using namespace std;
 
-map<string, unsigned int> strNode_f;
-multimap<unsigned int, string> f_strNode;
+unsigned long nodeCount = 0;
+map<string, unsigned short> strNode_f;
+multimap<unsigned short, string> f_strNode;
 map<string, string> path;
 set<string> doneNode;
-int srcMap[5][5], tgtMap[5][5];
+short srcMap[5][5], tgtMap[5][5];
 
 string srcNode, tgtNode;
 string currNode;
 
-void reader(int (*Map)[5], string filePath) {
+void reader(short (*Map)[5], string filePath) {
     ifstream input(filePath);
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
+    for (short i = 0; i < 5; i++) {
+        for (short j = 0; j < 5; j++) {
             input >> Map[i][j];
-            cout << Map[i][j] << " ";
         }
-        cout << endl;
     }
     input.close();
 }
-void int2str(int (*intMatrix)[5], string &strNode) {
+void short2str(short (*shortMatrix)[5], string &strNode) {
     strNode = "";
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            strNode += intMatrix[i][j] + 34;
+    for (short i = 0; i < 5; i++) {
+        for (short j = 0; j < 5; j++) {
+            strNode += shortMatrix[i][j] + 34;
         }
     }
 }
-void str2int(string &strNode, int (*intMatrix)[5]) {
-    for (int i = 0; i < 25; i++) {
-        (*intMatrix)[i] = strNode[i] - 34;
+void str2short(string &strNode, short (*shortMatrix)[5]) {
+    for (short i = 0; i < 25; i++) {
+        (*shortMatrix)[i] = strNode[i] - 34;
     }
 }
-unsigned int h2(string nNode, string mNode = tgtNode) {
-    unsigned int count = 0;
-    for (int i = 0; i < 25; i++) {
+unsigned short h1(string nNode, string mNode = tgtNode) {
+    unsigned short count = 0;
+    for (short i = 0; i < 25; i++) {
         if (nNode[i] != mNode[i])
             count++;
     }
     return count;
 }
 void expanding() {
-    int zero_i, zero_j;
-    int tmp_zero_i, tmp_zero_j;
+    short zero_i, zero_j;
+    short tmp_zero_i, tmp_zero_j;
     string tmpNode;
     string currPath = path[currNode];
     doneNode.insert(currNode);
-    unsigned int g = strNode_f[currNode];
-    for (int i = 0; i < 25; i++) {
+    unsigned short g = strNode_f[currNode] - h1(currNode) + 1;
+    f_strNode.erase(f_strNode.begin());
+    strNode_f.erase(currNode);
+    path.erase(currNode);
+    for (short i = 0; i < 25; i++) {
         if (currNode[i] == '"') {
             zero_i = i / 5;
             zero_j = i % 5;
             break;
         }
     }
-    int hinderOffset;
+    short hinderOffset;
     // left
     tmp_zero_i = zero_i;
     tmp_zero_j = zero_j;
@@ -79,11 +81,12 @@ void expanding() {
             tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1];
         tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] = '"';
         if (!doneNode.count(tmpNode)) {
-            unsigned int tmpf = g + h2(tmpNode);
+            unsigned short tmpf = g + h1(tmpNode);
             if (strNode_f.insert(make_pair(tmpNode, tmpf)).second == false)
                 break;
             f_strNode.insert(make_pair(tmpf, tmpNode));
             path.insert(make_pair(tmpNode, currPath + "L"));
+            nodeCount++;
             break;
         } else {
             break;
@@ -105,12 +108,13 @@ void expanding() {
             tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1];
         tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] = '"';
         if (!doneNode.count(tmpNode)) {
-            unsigned int tmpf = g + h2(tmpNode);
+            unsigned short tmpf = g + h1(tmpNode);
             if (strNode_f.insert(make_pair(tmpNode, tmpf)).second == false)
                 break;
             f_strNode.insert(make_pair(tmpf, tmpNode));
 
             path.insert(make_pair(tmpNode, currPath + "R"));
+            nodeCount++;
             break;
         } else {
             break;
@@ -129,11 +133,12 @@ void expanding() {
             tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j];
         tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] = '"';
         if (!doneNode.count(tmpNode)) {
-            unsigned int tmpf = g + h2(tmpNode);
+            unsigned short tmpf = g + h1(tmpNode);
             if (strNode_f.insert(make_pair(tmpNode, tmpf)).second == false)
                 break;
             f_strNode.insert(make_pair(tmpf, tmpNode));
             path.insert(make_pair(tmpNode, currPath + "U"));
+            nodeCount++;
             break;
         } else {
             break;
@@ -152,44 +157,48 @@ void expanding() {
             tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j];
         tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] = '"';
         if (!doneNode.count(tmpNode)) {
-            unsigned int tmpf = g + h2(tmpNode);
+            unsigned short tmpf = g + h1(tmpNode);
             if (strNode_f.insert(make_pair(tmpNode, tmpf)).second == false)
                 break;
             f_strNode.insert(make_pair(tmpf, tmpNode));
             path.insert(make_pair(tmpNode, currPath + "D"));
+            nodeCount++;
             break;
         } else {
             break;
         }
     }
-
-    f_strNode.erase(f_strNode.begin());
-    strNode_f.erase(currNode);
-    path.erase(currNode);
 }
 
 int main() {
     reader(srcMap, "input.txt");
     reader(tgtMap, "target.txt");
-    int2str(srcMap, srcNode);
-    int2str(tgtMap, tgtNode);
+    short2str(srcMap, srcNode);
+    short2str(tgtMap, tgtNode);
     struct timeval start;
     gettimeofday(&start, NULL);
-    strNode_f.insert(make_pair(srcNode, h2(srcNode)));
-    f_strNode.insert(make_pair(h2(srcNode), srcNode));
+    strNode_f.insert(make_pair(srcNode, h1(srcNode)));
+    f_strNode.insert(make_pair(h1(srcNode), srcNode));
     currNode = srcNode;
     path.insert(make_pair(currNode, ""));
-    while (h2(currNode)) {
+    while (h1(currNode)) {
         expanding();
         currNode = f_strNode.begin()->second;
     }
     struct timeval end;
     gettimeofday(&end, NULL);
-    ofstream output("output_Ah2.txt", ios::app);
+    ofstream output("output_Ah1.txt", ios::out);
     cout << (end.tv_sec - start.tv_sec) +
                 (end.tv_usec - start.tv_usec) / 1000000.0
          << endl;
     cout << path[currNode] << endl;
+    cout << (path[currNode]).length() << endl;
+    cout << nodeCount << endl;
+    output << (end.tv_sec - start.tv_sec) +
+                  (end.tv_usec - start.tv_usec) / 1000000.0
+           << endl;
+    output << path[currNode] << endl;
+    output << (path[currNode]).length() << endl;
     output.close();
     return 0;
 }
