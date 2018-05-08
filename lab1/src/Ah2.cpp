@@ -6,21 +6,21 @@
 #include <queue>
 #include <set>
 #include <sys/time.h>
+#include <unordered_map>
 
 using namespace std;
 
 typedef struct nodeInfo {
     unsigned short f;
-    string parent = "#";
-    bool visited = false;
+    char direc = '#';
 } node;
 
-unsigned long nodeCount = 0;
-map<string, node> nodeTable;
+const unsigned long size_limit = 180;
+unordered_map<string, node> nodeTable;
 multimap<unsigned short, string> f_strNode;
 short srcMap[5][5], tgtMap[5][5];
-// priority_queue<unsigned short> f_strNode;
 
+short zero_i, zero_j;
 string srcNode, tgtNode;
 string currNode;
 
@@ -37,24 +37,63 @@ void short2str(short (*shortMatrix)[5], string &strNode) {
     strNode = "";
     for (short i = 0; i < 5; i++) {
         for (short j = 0; j < 5; j++) {
+            if (shortMatrix[i][j] == 0) {
+                strNode += shortMatrix[i][j] + 57;
+                continue;
+            }
             strNode += shortMatrix[i][j] + 34;
         }
     }
 }
 void str2short(string &strNode, short (*shortMatrix)[5]) {
     for (short i = 0; i < 25; i++) {
+        if (strNode[i] == '9') {
+            (*shortMatrix)[i] = strNode[i] - 57;
+            continue;
+        }
         (*shortMatrix)[i] = strNode[i] - 34;
     }
+}
+unsigned short h1(string nNode, string mNode = tgtNode) {
+    unsigned short count = 0;
+    for (short i = 0; i < 25; i++) {
+        if (nNode[i] != mNode[i])
+            count++;
+    }
+    return count;
 }
 
 unsigned short h2(string nNode, string mNode = tgtNode) {
     unsigned short count = 0;
+    short idiv5, jdiv5, imod5, jmod5;
     for (short i = 0; i < 25; i++) {
-        if (nNode[i] == '!')
+        if (nNode[i] == '!' or nNode[i] == '9')
             continue;
         for (short j = 0; j < 25; j++) {
             if (nNode[i] == tgtNode[j]) {
-                count += abs(i % 5 - j % 5) + abs(i / 5 - j / 5);
+                imod5 = i % 5;
+                jmod5 = j % 5;
+                idiv5 = i / 5;
+                jdiv5 = j / 5;
+                count += abs(imod5 - jmod5) + abs(idiv5 - jdiv5);
+                // row--
+                if (idiv5 == jdiv5) {
+                    short mincow = min(imod5, jmod5);
+                    short maxcow = max(imod5, jmod5);
+                    for (short h = mincow + 1; h < maxcow; h++) {
+                        if (nNode[idiv5 * 5 + h] == '!')
+                            count--;
+                    }
+                }
+                // cow+=2
+                if (imod5 == jmod5) {
+                    short minrow = min(idiv5, jdiv5);
+                    short maxrow = max(idiv5, jdiv5);
+                    for (short h = minrow + 1; h < maxrow; h++) {
+                        if (nNode[h * 5 + imod5] == '!')
+                            count += 2;
+                    }
+                }
                 break;
             }
         }
@@ -69,150 +108,175 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
 }
 
 void expanding() {
-    short zero_i, zero_j;
     short tmp_zero_i, tmp_zero_j;
     string tmpNode;
     node tmp;
-    nodeTable[currNode].visited = true;
     unsigned short g = nodeTable[currNode].f - h2(currNode) + 1;
+    char currDirec = nodeTable[currNode].direc;
     f_strNode.erase(f_strNode.begin());
     for (short i = 0; i < 25; i++) {
-        if (currNode[i] == '"') {
+        if (currNode[i] == '9') {
             zero_i = i / 5;
             zero_j = i % 5;
             break;
         }
     }
     short hinderOffset;
-    // left
-    tmp_zero_i = zero_i;
-    tmp_zero_j = zero_j;
-    hinderOffset = 0;
-    tmpNode = currNode;
-    while (tmp_zero_j > 0) {
-        if (tmp_zero_j - hinderOffset <= 0)
-            break;
-        if (tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] == '!') {
-            hinderOffset++;
-            continue;
-        }
-
-        tmpNode[5 * tmp_zero_i + tmp_zero_j] =
-            tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1];
-        tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] = '"';
-        tmp.f = g + h2(tmpNode);
-        tmp.parent = currNode;
-        if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
-            break;
-        f_strNode.insert(make_pair(tmp.f, tmpNode));
-        nodeCount++;
-        break;
-    }
     // right
     tmp_zero_i = zero_i;
     tmp_zero_j = zero_j;
     tmpNode = currNode;
     hinderOffset = 0;
-    while (tmp_zero_j < 4) {
-        if (tmp_zero_j + hinderOffset >= 4)
-            break;
-        if (tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] == '!') {
-            hinderOffset++;
-            continue;
-        }
-        tmpNode[5 * tmp_zero_i + tmp_zero_j] =
-            tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1];
-        tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] = '"';
-        tmp.f = g + h2(tmpNode);
-        tmp.parent = currNode;
-        if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
-            break;
-        f_strNode.insert(make_pair(tmp.f, tmpNode));
-        nodeCount++;
-        break;
-    }
-    // up
-    tmp_zero_i = zero_i;
-    tmp_zero_j = zero_j;
-    tmpNode = currNode;
-    hinderOffset = 0;
-    while (tmp_zero_i > 0) {
-        if (tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] == '!') {
+    if (currDirec != 'L') {
+        while (tmp_zero_j < 4) {
+            if (tmp_zero_j + hinderOffset >= 4)
+                break;
+            if (tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] ==
+                '!') {
+                hinderOffset++;
+                continue;
+            }
+            tmpNode[5 * tmp_zero_i + tmp_zero_j] =
+                tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1];
+            tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] = '9';
+            tmp.f = g + h2(tmpNode);
+            tmp.direc = 'R';
+            if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
+                break;
+            f_strNode.insert(make_pair(tmp.f, tmpNode));
             break;
         }
-        tmpNode[5 * tmp_zero_i + tmp_zero_j] =
-            tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j];
-        tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] = '"';
-
-        tmp.f = g + h2(tmpNode);
-        tmp.parent = currNode;
-        if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
-            break;
-        f_strNode.insert(make_pair(tmp.f, tmpNode));
-        nodeCount++;
-        break;
     }
     // down
     tmp_zero_i = zero_i;
     tmp_zero_j = zero_j;
     tmpNode = currNode;
     hinderOffset = 0;
-    while (tmp_zero_i < 4) {
-        if (tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] == '!') {
+    if (currDirec != 'U') {
+        while (tmp_zero_i < 4) {
+            if (tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] == '!') {
+                break;
+            }
+            tmpNode[5 * tmp_zero_i + tmp_zero_j] =
+                tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j];
+            tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] = '9';
+            tmp.f = g + h2(tmpNode);
+            tmp.direc = 'D';
+            if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
+                break;
+            f_strNode.insert(make_pair(tmp.f, tmpNode));
             break;
         }
-        tmpNode[5 * tmp_zero_i + tmp_zero_j] =
-            tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j];
-        tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] = '"';
-        tmp.f = g + h2(tmpNode);
-        tmp.parent = currNode;
-        if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
+    }
+    // left
+    tmp_zero_i = zero_i;
+    tmp_zero_j = zero_j;
+    hinderOffset = 0;
+    tmpNode = currNode;
+    if (currDirec != 'R') {
+        while (tmp_zero_j > 0) {
+            if (tmp_zero_j - hinderOffset <= 0)
+                break;
+            if (tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] ==
+                '!') {
+                hinderOffset++;
+                continue;
+            }
+
+            tmpNode[5 * tmp_zero_i + tmp_zero_j] =
+                tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1];
+            tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] = '9';
+            tmp.f = g + h2(tmpNode);
+            tmp.direc = 'L';
+            if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
+                break;
+            f_strNode.insert(make_pair(tmp.f, tmpNode));
             break;
-        f_strNode.insert(make_pair(tmp.f, tmpNode));
-        nodeCount++;
-        break;
+        }
+    }
+    // up
+    tmp_zero_i = zero_i;
+    tmp_zero_j = zero_j;
+    tmpNode = currNode;
+    hinderOffset = 0;
+    if (currDirec != 'D') {
+        while (tmp_zero_i > 0) {
+            if (tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] == '!') {
+                break;
+            }
+            tmpNode[5 * tmp_zero_i + tmp_zero_j] =
+                tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j];
+            tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] = '9';
+
+            tmp.f = g + h2(tmpNode);
+            tmp.direc = 'U';
+            if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
+                break;
+            f_strNode.insert(make_pair(tmp.f, tmpNode));
+            break;
+        }
     }
 }
 
 string path(string nodeN, string &currPath) {
-    string tmp = nodeTable[nodeN].parent;
-    if (tmp == "#")
+    // cout << zero_i << " " << zero_j << endl;
+    char tmpDirec = nodeTable[nodeN].direc;
+    if (tmpDirec == '#')
         return currPath;
-    int pos_zero, pos1, pos2;
-    for (int i = 0; i < 25; i++) {
-        if (tmp[i] != nodeN[i]) {
-            pos1 = i;
-            if (nodeN[i] == '"')
-                pos_zero = i;
-            break;
+    switch (tmpDirec) {
+    case 'L': {
+        if (nodeN[zero_i * 5 + zero_j + 1] == '!') {
+            nodeN[zero_i * 5 + zero_j] = nodeN[zero_i * 5 + zero_j + 2];
+            nodeN[zero_i * 5 + zero_j + 2] = '9';
+            zero_j += 2;
+            currPath = 'L' + currPath;
+            return path(nodeN, currPath);
+        } else {
+            nodeN[zero_i * 5 + zero_j] = nodeN[zero_i * 5 + zero_j + 1];
+            nodeN[zero_i * 5 + zero_j + 1] = '9';
+            zero_j += 1;
+            currPath = 'L' + currPath;
+            return path(nodeN, currPath);
         }
+        break;
     }
-    for (int i = 24; i >= 0; i--) {
-        if (tmp[i] != nodeN[i]) {
-            pos2 = i;
-            if (nodeN[i] == '"')
-                pos_zero = i;
-            break;
+    case 'R': {
+        if (nodeN[zero_i * 5 + zero_j - 1] == '!') {
+            nodeN[zero_i * 5 + zero_j] = nodeN[zero_i * 5 + zero_j - 2];
+            nodeN[zero_i * 5 + zero_j - 2] = '9';
+            zero_j -= 2;
+            currPath = 'R' + currPath;
+            return path(nodeN, currPath);
+        } else {
+            nodeN[zero_i * 5 + zero_j] = nodeN[zero_i * 5 + zero_j - 1];
+            nodeN[zero_i * 5 + zero_j - 1] = '9';
+            zero_j -= 1;
+            currPath = 'R' + currPath;
+            return path(nodeN, currPath);
         }
+        break;
     }
-    if (pos2 - pos1 == 5) {
-        if (pos1 == pos_zero) {
-            currPath = "U" + currPath;
-            return path(tmp, currPath);
-        }
-        currPath = "D" + currPath;
-        return path(tmp, currPath);
+    case 'U': {
+        nodeN[zero_i * 5 + zero_j] = nodeN[(zero_i + 1) * 5 + zero_j];
+        nodeN[(zero_i + 1) * 5 + zero_j] = '9';
+        zero_i += 1;
+        currPath = 'U' + currPath;
+        return path(nodeN, currPath);
+        break;
     }
-    if (pos2 - pos1 < 4) {
-        if (pos1 == pos_zero) {
-            currPath = "L" + currPath;
-            return path(tmp, currPath);
-        }
-
-        currPath = "R" + currPath;
-        return path(tmp, currPath);
+    case 'D': {
+        nodeN[zero_i * 5 + zero_j] = nodeN[(zero_i - 1) * 5 + zero_j];
+        nodeN[(zero_i - 1) * 5 + zero_j] = '9';
+        zero_i -= 1;
+        currPath = 'D' + currPath;
+        return path(nodeN, currPath);
+        break;
+    }
+    default:
+        break;
     }
 }
+
 void move4test() {
     int src[5][5], tgt[5][5];
     int zero_i, zero_j;
@@ -305,7 +369,13 @@ int main() {
         expanding();
         currNode = f_strNode.begin()->second;
     }
-
+    for (short i = 0; i < 25; i++) {
+        if (currNode[i] == '9') {
+            zero_i = i / 5;
+            zero_j = i % 5;
+            break;
+        }
+    }
     struct timeval end;
     gettimeofday(&end, NULL);
     ofstream output("output_Ah2.txt", ios::out);
@@ -314,7 +384,7 @@ int main() {
          << endl;
     cout << path(currNode, src2tgt) << endl;
     cout << src2tgt.length() << endl;
-    cout << nodeCount << endl;
+    cout << nodeTable.size() << endl;
     output << (end.tv_sec - start.tv_sec) +
                   (end.tv_usec - start.tv_usec) / 1000000.0
            << endl;
