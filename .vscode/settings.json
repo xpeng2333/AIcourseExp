@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "*.c": "c",
+        "xstring": "cpp",
+        "map": "cpp",
+        "vector": "cpp",
+        "xtree": "cpp",
+        "utility": "cpp",
+        "ostream": "cpp",
+        "*.tcc": "cpp",
+        "fstream": "cpp",
+        "deque": "cpp",
+        "initializer_list": "cpp",
+        "queue": "cpp",
+        "type_traits": "cpp",
+        "xutility": "cpp",
+        "unordered_map": "cpp",
+        "xhash": "cpp",
+        "iostream": "cpp",
+        "set": "cpp",
+        "hash_map": "cpp",
+        "list": "cpp"
+    }
+}
