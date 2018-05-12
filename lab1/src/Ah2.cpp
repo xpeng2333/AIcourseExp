@@ -4,20 +4,46 @@
 #include <iostream>
 #include <map>
 #include <queue>
-#include <set>
-#include <sys/time.h>
-#include <unordered_map>
 
 using namespace std;
 
 typedef struct nodeInfo {
     unsigned short f;
+    unsigned short h;
     char direc = '#';
 } node;
 
-const unsigned long size_limit = 180;
-unordered_map<string, node> nodeTable;
-multimap<unsigned short, string> f_strNode;
+/*
+struct f_str {
+    friend bool operator<(f_str n1, f_str n2) {
+        if (n1.f > n2.f)
+            return true;
+        else if (n1.f == n2.f && n1.h > n2.h)
+            return true;
+        else
+            return false;
+    }
+    unsigned short f;
+    unsigned short h;
+    string strNode;
+};
+*/
+struct f_h {
+    friend bool operator<(f_h n1, f_h n2) {
+        if (n1.f < n2.f)
+            return true;
+        else if (n1.f == n2.f && n1.h < n2.h)
+            return true;
+        else
+            return false;
+    }
+    unsigned short f;
+    unsigned short h;
+};
+
+map<string, node> nodeTable;
+multimap<f_h, string> f_strNode;
+// priority_queue<f_str> f_strNode;
 short srcMap[5][5], tgtMap[5][5];
 
 short zero_i, zero_j;
@@ -57,18 +83,36 @@ void str2short(string &strNode, short (*shortMatrix)[5]) {
 unsigned short h1(string nNode, string mNode = tgtNode) {
     unsigned short count = 0;
     for (short i = 0; i < 25; i++) {
+        if (nNode[i] == '9')
+            continue;
         if (nNode[i] != mNode[i])
             count++;
     }
     return count;
 }
-
 unsigned short h2(string nNode, string mNode = tgtNode) {
     unsigned short count = 0;
     short idiv5, jdiv5, imod5, jmod5;
+    short flag1_i, flag2_i, flag1_j, flag2_j;
+    flag1_i = flag2_i = 2;
+    flag1_j = 1;
+    flag2_j = 3;
     for (short i = 0; i < 25; i++) {
-        if (nNode[i] == '!' or nNode[i] == '9')
+        if (nNode[i] == '9')
             continue;
+        if (nNode[i] == '!') {
+            /*
+            if (flag1_i == -1) {
+                flag1_i = i / 5;
+                flag1_j = i % 5;
+            } else {
+                flag2_i = i / 5;
+                flag2_j = i % 5;
+            }
+            cout << flag1_i + " " + flag1_j << endl;
+            */
+            continue;
+        }
         for (short j = 0; j < 25; j++) {
             if (nNode[i] == tgtNode[j]) {
                 imod5 = i % 5;
@@ -76,19 +120,20 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
                 idiv5 = i / 5;
                 jdiv5 = j / 5;
                 count += abs(imod5 - jmod5) + abs(idiv5 - jdiv5);
+                short minrow = min(idiv5, jdiv5);
+                short maxrow = max(idiv5, jdiv5);
+                short mincow = min(imod5, jmod5);
+                short maxcow = max(imod5, jmod5);
                 // row--
-                if (idiv5 == jdiv5) {
-                    short mincow = min(imod5, jmod5);
-                    short maxcow = max(imod5, jmod5);
-                    for (short h = mincow + 1; h < maxcow; h++) {
-                        if (nNode[idiv5 * 5 + h] == '!')
-                            count--;
-                    }
-                }
+                if (minrow <= flag1_i && maxrow >= flag1_i &&
+                    mincow < flag1_j && maxcow > flag1_j)
+                    count--;
+                if (minrow <= flag2_i && maxrow >= flag2_i &&
+                    mincow < flag2_j && maxcow > flag2_j)
+                    count--;
                 // cow+=2
-                if (imod5 == jmod5) {
-                    short minrow = min(idiv5, jdiv5);
-                    short maxrow = max(idiv5, jdiv5);
+                if ((imod5 == jmod5) &&
+                    ((imod5 == flag1_j) || (imod5 == flag2_j))) {
                     for (short h = minrow + 1; h < maxrow; h++) {
                         if (nNode[h * 5 + imod5] == '!')
                             count += 2;
@@ -100,20 +145,20 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
     }
     return count;
     /*
-    count -= 5;
-    if (count > 0)
+    if (count < 15)
         return count;
-    return 1;
+    return count * 1.2;
 */
 }
-
 void expanding() {
     short tmp_zero_i, tmp_zero_j;
     string tmpNode;
     node tmp;
-    unsigned short g = nodeTable[currNode].f - h2(currNode) + 1;
+    unsigned short h = h2(currNode);
+    unsigned short g = nodeTable[currNode].f - h + 1;
     char currDirec = nodeTable[currNode].direc;
     f_strNode.erase(f_strNode.begin());
+    // f_strNode.pop();
     for (short i = 0; i < 25; i++) {
         if (currNode[i] == '9') {
             zero_i = i / 5;
@@ -134,16 +179,19 @@ void expanding() {
             if (tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] ==
                 '!') {
                 hinderOffset++;
+                // tmpg--;
                 continue;
             }
             tmpNode[5 * tmp_zero_i + tmp_zero_j] =
                 tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1];
             tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] = '9';
-            tmp.f = g + h2(tmpNode);
+            tmp.h = h2(tmpNode);
+            tmp.f = g + tmp.h;
             tmp.direc = 'R';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
-            f_strNode.insert(make_pair(tmp.f, tmpNode));
+            f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
+            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -160,11 +208,13 @@ void expanding() {
             tmpNode[5 * tmp_zero_i + tmp_zero_j] =
                 tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j];
             tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] = '9';
-            tmp.f = g + h2(tmpNode);
+            tmp.h = h2(tmpNode);
+            tmp.f = g + tmp.h;
             tmp.direc = 'D';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
-            f_strNode.insert(make_pair(tmp.f, tmpNode));
+            f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
+            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -180,17 +230,20 @@ void expanding() {
             if (tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] ==
                 '!') {
                 hinderOffset++;
+                // tmpg--;
                 continue;
             }
 
             tmpNode[5 * tmp_zero_i + tmp_zero_j] =
                 tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1];
             tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] = '9';
-            tmp.f = g + h2(tmpNode);
+            tmp.h = h2(tmpNode);
+            tmp.f = g + tmp.h;
             tmp.direc = 'L';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
-            f_strNode.insert(make_pair(tmp.f, tmpNode));
+            f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
+            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -208,11 +261,13 @@ void expanding() {
                 tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j];
             tmpNode[5 * (tmp_zero_i - 1) + tmp_zero_j] = '9';
 
-            tmp.f = g + h2(tmpNode);
+            tmp.h = h2(tmpNode);
+            tmp.f = g + tmp.h;
             tmp.direc = 'U';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
-            f_strNode.insert(make_pair(tmp.f, tmpNode));
+            f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
+            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -278,7 +333,7 @@ string path(string nodeN, string &currPath) {
 }
 
 void move4test() {
-    int src[5][5], tgt[5][5];
+    short src[5][5], tgt[5][5];
     int zero_i, zero_j;
     ifstream path("output_Ah2.txt");
     ifstream source("input.txt");
@@ -300,7 +355,10 @@ void move4test() {
     path >> strPath;
     cout << strPath << endl;
     path.close();
+    string strSource;
     for (int i = 0; i < strPath.size(); i++) {
+        short2str(src, strSource);
+        // cout << h2(strSource) << endl;
         switch (strPath[i]) {
         case 'L': {
             if (src[zero_i][zero_j - 1] == -1) {
@@ -360,15 +418,24 @@ int main() {
     short2str(srcMap, srcNode);
     short2str(tgtMap, tgtNode);
     nodeSrc.f = h2(srcNode);
-    struct timeval start;
-    gettimeofday(&start, NULL);
+    cout << nodeSrc.f << endl;
+    clock_t start, finish;
+    double totaltime;
+    start = clock();
+    // struct timeval start;
+    // gettimeofday(&start, NULL);
     nodeTable.insert(make_pair(srcNode, nodeSrc));
-    f_strNode.insert(make_pair(h2(srcNode), srcNode));
+    // f_strNode.insert(make_pair(h2(srcNode), srcNode));
+    f_strNode.insert(make_pair(f_h{h2(srcNode), h2(srcNode)}, srcNode));
+    // f_strNode.push({h2(srcNode), h2(srcNode), srcNode});
     currNode = srcNode;
     while (currNode != tgtNode) {
         expanding();
         currNode = f_strNode.begin()->second;
+        // currNode = f_strNode.top().strNode;
     }
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
     for (short i = 0; i < 25; i++) {
         if (currNode[i] == '9') {
             zero_i = i / 5;
@@ -376,18 +443,20 @@ int main() {
             break;
         }
     }
-    struct timeval end;
-    gettimeofday(&end, NULL);
+    // struct timeval end;
+    // gettimeofday(&end, NULL);
     ofstream output("output_Ah2.txt", ios::out);
-    cout << (end.tv_sec - start.tv_sec) +
-                (end.tv_usec - start.tv_usec) / 1000000.0
-         << endl;
+    cout << totaltime << endl;
+    // cout << (end.tv_sec - start.tv_sec) +
+    //            (end.tv_usec - start.tv_usec) / 1000000.0
+    //     << endl;
     cout << path(currNode, src2tgt) << endl;
     cout << src2tgt.length() << endl;
     cout << nodeTable.size() << endl;
-    output << (end.tv_sec - start.tv_sec) +
-                  (end.tv_usec - start.tv_usec) / 1000000.0
-           << endl;
+    output << totaltime << endl;
+    // output << (end.tv_sec - start.tv_sec) +
+    //              (end.tv_usec - start.tv_usec) / 1000000.0
+    //       << endl;
     output << src2tgt << endl;
     output << src2tgt.length() << endl;
     output.close();
