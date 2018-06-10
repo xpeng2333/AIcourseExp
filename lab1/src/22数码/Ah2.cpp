@@ -10,24 +10,11 @@ using namespace std;
 typedef struct nodeInfo {
     unsigned short f;
     unsigned short h;
+    unsigned short zero_i;
+    unsigned short zero_j;
     char direc = '#';
 } node;
 
-/*
-struct f_str {
-    friend bool operator<(f_str n1, f_str n2) {
-        if (n1.f > n2.f)
-            return true;
-        else if (n1.f == n2.f && n1.h > n2.h)
-            return true;
-        else
-            return false;
-    }
-    unsigned short f;
-    unsigned short h;
-    string strNode;
-};
-*/
 struct f_h {
     friend bool operator<(f_h n1, f_h n2) {
         if (n1.f < n2.f)
@@ -43,7 +30,7 @@ struct f_h {
 
 map<string, node> nodeTable;
 multimap<f_h, string> f_strNode;
-// priority_queue<f_str> f_strNode;
+
 short srcMap[5][5], tgtMap[5][5];
 
 short zero_i, zero_j;
@@ -101,23 +88,13 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
         if (nNode[i] == '9')
             continue;
         if (nNode[i] == '!') {
-            /*
-            if (flag1_i == -1) {
-                flag1_i = i / 5;
-                flag1_j = i % 5;
-            } else {
-                flag2_i = i / 5;
-                flag2_j = i % 5;
-            }
-            cout << flag1_i + " " + flag1_j << endl;
-            */
             continue;
         }
+        imod5 = i % 5;
+        idiv5 = i / 5;
         for (short j = 0; j < 25; j++) {
             if (nNode[i] == tgtNode[j]) {
-                imod5 = i % 5;
                 jmod5 = j % 5;
-                idiv5 = i / 5;
                 jdiv5 = j / 5;
                 count += abs(imod5 - jmod5) + abs(idiv5 - jdiv5);
                 short minrow = min(idiv5, jdiv5);
@@ -143,29 +120,23 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
             }
         }
     }
-    return count;
-    /*
+    //下面的一行代码为改进版的曼哈顿距离
+    // return count;
+    //下面代码是对h2值进行调整以适应大规模问题，但是却是不可采纳的，如果不合要求可注释取消
     if (count < 15)
         return count;
     return count * 1.2;
-*/
 }
 void expanding() {
     short tmp_zero_i, tmp_zero_j;
     string tmpNode;
     node tmp;
-    unsigned short h = h2(currNode);
-    unsigned short g = nodeTable[currNode].f - h + 1;
+    unsigned short g = nodeTable[currNode].f - nodeTable[currNode].h + 1;
     char currDirec = nodeTable[currNode].direc;
     f_strNode.erase(f_strNode.begin());
-    // f_strNode.pop();
-    for (short i = 0; i < 25; i++) {
-        if (currNode[i] == '9') {
-            zero_i = i / 5;
-            zero_j = i % 5;
-            break;
-        }
-    }
+
+    zero_i = nodeTable[currNode].zero_i;
+    zero_j = nodeTable[currNode].zero_j;
     short hinderOffset;
     // right
     tmp_zero_i = zero_i;
@@ -187,11 +158,12 @@ void expanding() {
             tmpNode[5 * tmp_zero_i + tmp_zero_j + hinderOffset + 1] = '9';
             tmp.h = h2(tmpNode);
             tmp.f = g + tmp.h;
+            tmp.zero_i = tmp_zero_i;
+            tmp.zero_j = tmp_zero_j + hinderOffset + 1;
             tmp.direc = 'R';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
             f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
-            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -210,11 +182,12 @@ void expanding() {
             tmpNode[5 * (tmp_zero_i + 1) + tmp_zero_j] = '9';
             tmp.h = h2(tmpNode);
             tmp.f = g + tmp.h;
+            tmp.zero_i = tmp_zero_i + 1;
+            tmp.zero_j = tmp_zero_j;
             tmp.direc = 'D';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
             f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
-            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -239,11 +212,12 @@ void expanding() {
             tmpNode[5 * tmp_zero_i + tmp_zero_j - hinderOffset - 1] = '9';
             tmp.h = h2(tmpNode);
             tmp.f = g + tmp.h;
+            tmp.zero_i = tmp_zero_i;
+            tmp.zero_j = tmp_zero_j - hinderOffset - 1;
             tmp.direc = 'L';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
             f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
-            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
@@ -263,18 +237,18 @@ void expanding() {
 
             tmp.h = h2(tmpNode);
             tmp.f = g + tmp.h;
+            tmp.zero_i = tmp_zero_i - 1;
+            tmp.zero_j = tmp_zero_j;
             tmp.direc = 'U';
             if (nodeTable.insert(make_pair(tmpNode, tmp)).second == false)
                 break;
             f_strNode.insert(make_pair(f_h{tmp.f, tmp.h}, tmpNode));
-            // f_strNode.push({tmp.f, tmp.h, tmpNode});
             break;
         }
     }
 }
 
 string path(string nodeN, string &currPath) {
-    // cout << zero_i << " " << zero_j << endl;
     char tmpDirec = nodeTable[nodeN].direc;
     if (tmpDirec == '#')
         return currPath;
@@ -353,12 +327,10 @@ void move4test() {
     string strPath;
     path >> strPath;
     path >> strPath;
-    cout << strPath << endl;
     path.close();
     string strSource;
     for (int i = 0; i < strPath.size(); i++) {
         short2str(src, strSource);
-        // cout << h2(strSource) << endl;
         switch (strPath[i]) {
         case 'L': {
             if (src[zero_i][zero_j - 1] == -1) {
@@ -417,22 +389,26 @@ int main() {
     reader(tgtMap, "target.txt");
     short2str(srcMap, srcNode);
     short2str(tgtMap, tgtNode);
-    nodeSrc.f = h2(srcNode);
-    cout << nodeSrc.f << endl;
+    for (short i = 0; i < 25; i++) {
+        if (srcNode[i] == '9') {
+            zero_i = i / 5;
+            zero_j = i % 5;
+            break;
+        }
+    }
+    nodeSrc.h = h2(srcNode);
+    nodeSrc.f = nodeSrc.h;
+    nodeSrc.zero_i = zero_i;
+    nodeSrc.zero_j = zero_j;
     clock_t start, finish;
     double totaltime;
     start = clock();
-    // struct timeval start;
-    // gettimeofday(&start, NULL);
     nodeTable.insert(make_pair(srcNode, nodeSrc));
-    // f_strNode.insert(make_pair(h2(srcNode), srcNode));
-    f_strNode.insert(make_pair(f_h{h2(srcNode), h2(srcNode)}, srcNode));
-    // f_strNode.push({h2(srcNode), h2(srcNode), srcNode});
+    f_strNode.insert(make_pair(f_h{nodeSrc.f, nodeSrc.h}, srcNode));
     currNode = srcNode;
     while (currNode != tgtNode) {
         expanding();
         currNode = f_strNode.begin()->second;
-        // currNode = f_strNode.top().strNode;
     }
     finish = clock();
     totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
@@ -443,20 +419,12 @@ int main() {
             break;
         }
     }
-    // struct timeval end;
-    // gettimeofday(&end, NULL);
+
     ofstream output("output_Ah2.txt", ios::out);
     cout << totaltime << endl;
-    // cout << (end.tv_sec - start.tv_sec) +
-    //            (end.tv_usec - start.tv_usec) / 1000000.0
-    //     << endl;
     cout << path(currNode, src2tgt) << endl;
     cout << src2tgt.length() << endl;
-    cout << nodeTable.size() << endl;
     output << totaltime << endl;
-    // output << (end.tv_sec - start.tv_sec) +
-    //              (end.tv_usec - start.tv_usec) / 1000000.0
-    //       << endl;
     output << src2tgt << endl;
     output << src2tgt.length() << endl;
     output.close();

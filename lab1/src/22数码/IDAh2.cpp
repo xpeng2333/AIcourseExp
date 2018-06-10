@@ -93,7 +93,9 @@ unsigned short h2(string nNode, string mNode = tgtNode) {
             }
         }
     }
-    return count;
+    if (count < 15)
+        return count;
+    return count * 1.2;
 }
 void expanding() {
     unsigned short d_limit = h2(srcNode);
